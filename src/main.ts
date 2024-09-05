@@ -7,7 +7,6 @@ async function bootstrap() {
     origin: '*',  // Permitir cualquier origen
     methods: '*',  // Permitir todos los métodos
     allowedHeaders: '*',  // Permitir todas las cabeceras
-    credentials: true,  // Si estás usando autenticación basada en cookies o headers
   });
 
   await app.listen(3000);
