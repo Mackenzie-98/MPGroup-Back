@@ -1,0 +1,19 @@
+// src/cut-section/cut-section.controller.ts
+import { Controller, Post, Body, Req } from '@nestjs/common';
+import { CutSectionService } from './cut-section.service';
+
+@Controller('cut-section')
+export class CutSectionController {
+    constructor(private readonly cutSectionService: CutSectionService) { }
+
+    @Post('validate')
+    async validateCut(@Body('genericNumber') genericNumber: string, @Body('orderNumber') orderNumber: string, @Body('width') width: number) {
+        return this.cutSectionService.validateCut(genericNumber, orderNumber, width);
+    }
+
+    @Post('recalculate')
+    async recalculateCut(@Body('genericNumber') genericNumber: string, @Body('orderNumber') orderNumber: string, @Body('width') width: number, @Req() req: Request): Promise<any> {
+        const username = req['username'];
+        return this.cutSectionService.recalculateCut(genericNumber, orderNumber, width, username);
+    }
+}
