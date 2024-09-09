@@ -2,32 +2,50 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Recalculation } from './model/recalculation.entity';
-import { Calculation } from '../calculator/model/calculation.entity';
 import { CalculatorService } from 'src/calculator/calculator.service';
-import { CreateCalculationDto } from 'src/calculator/model/calculation.dto';
+import { CreateCalculationDto, DetallePorTalla } from 'src/calculator/model/calculation.dto';
+import { CorteRecalculation } from './model/corte-recalculation.entity';
 
 @Injectable()
 export class CutSectionService {
     constructor(
-        @InjectRepository(Recalculation)
-        private readonly recalculationRepository: Repository<Recalculation>,
-        @InjectRepository(Calculation)
-        private readonly calculationRepository: Repository<Calculation>,
+        @InjectRepository(CorteRecalculation)
+        private readonly recalculationRepository: Repository<CorteRecalculation>,
         private readonly calculatorService: CalculatorService,
     ) { }
 
     async validateCut(nroGenerico: string, nroOrden: string, nuevoAncho: number) {
-        const calculation = await this.calculationRepository.findOne({ where: { nroMuestra: nroGenerico } });
+        try {
+            const calculations = await this.calculatorService.getCalculationsByGenerico(nroGenerico);
 
-        if (!calculation) {
-            throw new NotFoundException('El número de genérico digitado no existe.');
-        }
+            if (!calculations || calculations.length === 0) {
+                throw new NotFoundException('El número de genérico digitado no existe.');
+            }
 
-        if (calculation.ancho === nuevoAncho) {
-            return { isValid: true, message: 'El ancho corresponde con el calculado por ingeniería.' };
-        } else {
-            return { recalculate: true, message: 'El ancho no coincide con el calculado por ingeniería. ¿Desea recalcular el consumo?' };
+            const filteredCalculations = calculations.filter(calculation =>
+                calculation.sentido === 1 || calculation.sentido === 3
+            );
+
+            const allAreAlHilo = calculations.every(calculation => calculation.sentido === 2);
+            if (allAreAlHilo) {
+                return { message: 'Los cálculos para este genérico son "Al Hilo", por lo que no se requiere recalcular el ancho.' };
+            }
+
+            const validCalculations = filteredCalculations.filter(calculation => calculation.ancho);
+
+            if (validCalculations.length === 0) {
+                throw new NotFoundException('No se encontraron cálculos válidos para este genérico.');
+            }
+
+            const allAnchosMatch = validCalculations.every(calculation => calculation.ancho === nuevoAncho);
+
+            if (allAnchosMatch) {
+                return { message: 'El ancho corresponde con el calculado por ingeniería.' };
+            } else {
+                return { recalculate: true, message: 'El ancho no coincide con el calculado por ingeniería. ¿Desea recalcular el consumo?' };
+            }
+        } catch (error) {
+            throw new ConflictException(error.message || 'Error al validar el corte.');
         }
     }
 
@@ -38,54 +56,77 @@ export class CutSectionService {
         user: string
     ): Promise<any> {
         try {
-            const calculation = await this.calculatorService.getCalculationByGenerico(nroGenerico);
+            const calculations = await this.calculatorService.getCalculationsByGenerico(nroGenerico);
 
-            if (!calculation) {
+            if (!calculations || calculations.length === 0) {
                 throw new NotFoundException('No se encontró cálculo para el genérico proporcionado.');
             }
 
-            // Validar la existencia de medidas y resultados
-            if (!calculation.medidas || calculation.medidas.length === 0) {
-                throw new Error('Datos de cálculo incompletos o medidas no encontradas.');
-            }
+            const recalculationCandidates = calculations.filter(
+                (calc) => calc.sentido === 1 || calc.sentido === 3
+            );
 
-            // Convertir los detalles al tipo esperado por CreateCalculationDto
-            const detallesConvertidos = Object.entries(calculation.detalles).map(([key, detalle]) => ({
-                consumo: detalle.consumo,
-                anchos: detalle.anchos,
-                mpAnchos: detalle.mpAnchos
-            }));
+            const recalculatedResultsPromises = recalculationCandidates.map(async (calculation) => {
+                const recalculationData: CreateCalculationDto = {
+                    ...calculation,
+                    ancho: nuevoAncho,
+                    detalles: this.mapDetallesPorTalla(calculation.detalles),
+                    createdBy: user,
+                };
 
-            // Crear una copia del cálculo existente con el nuevo ancho y detalles convertidos
-            const updatedCalculation: CreateCalculationDto = {
-                ...calculation,
-                ancho: nuevoAncho,
-                tallas: calculation.tallas,
-                detalles: detallesConvertidos,
-                createdBy: user
-            };
+                const recalculated = await this.calculatorService.calculate(recalculationData);
 
-            // Recalcular los resultados con el nuevo ancho
-            const recalculatedResult = await this.calculatorService.calculate(updatedCalculation);
+                return {
+                    sentido: this.getSentidoLabel(calculation.sentido),
+                    sesgo: calculation.sesgo,
+                    detalles: recalculated.resultados.map((resultado) => ({
+                        talla: resultado.talla,
+                        consumo: parseFloat(resultado.value),
+                    })),
+                };
+            });
 
-            // Crear un nuevo registro de recalculación
-            const recalculation = this.recalculationRepository.create({
+            const recalculatedResults = await Promise.all(recalculatedResultsPromises);
+
+            const recalculationRecord = this.recalculationRepository.create({
                 nroGenerico,
                 nroOrden,
                 nuevoAncho,
-                resultados: recalculatedResult.resultados,
-                createdBy: user
+                resultados: recalculatedResults,
+                createdBy: user,
             });
 
-            // Guardar la recalculación en la base de datos
-            await this.recalculationRepository.save(recalculation);
+            await this.recalculationRepository.save(recalculationRecord);
 
-            return { success: true, message: 'Recalculation saved successfully', recalculation };
+            return {
+                success: true,
+                message: 'Recalculation saved successfully.',
+                recalculatedResults,
+            };
         } catch (error) {
-            // Manejar errores y proporcionar retroalimentación
-            console.error('Error during recalculation:', error);
-            throw new Error('Ocurrió un error al recalcular el corte.');
+            throw new ConflictException(error.message || 'Error al recalcular el corte.');
         }
     }
 
+
+    private mapDetallesPorTalla(detalles: any): DetallePorTalla[] {
+        return Object.keys(detalles).map(talla => ({
+            consumo: detalles[talla].consumo,
+            anchos: detalles[talla].anchos,
+            mpAnchos: detalles[talla].mpAnchos,
+        }));
+    }
+
+    private getSentidoLabel(sentido: number): string {
+        switch (sentido) {
+            case 1:
+                return 'Al Traves';
+            case 2:
+                return 'Al Hilo';
+            case 3:
+                return 'Al Sesgo';
+            default:
+                return 'Desconocido';
+        }
+    }
 }

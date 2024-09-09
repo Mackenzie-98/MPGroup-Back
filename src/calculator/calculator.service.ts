@@ -1,6 +1,6 @@
-import { GoneException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, GoneException, Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Calculation } from './model/calculation.entity';
 import { NormalizationService } from 'src/normalization/normalization.service';
 import { CreateCalculationDto } from './model/calculation.dto';
@@ -11,18 +11,23 @@ export class CalculatorService {
     constructor(
         @InjectRepository(Calculation)
         private readonly calculationRepository: Repository<Calculation>,
+        @Inject(forwardRef(() => NormalizationService))
         private readonly normalizationService: NormalizationService,
     ) { }
 
     async calculate(data: CreateCalculationDto): Promise<any> {
-
         try {
-            const { ancho, sentido: optSesgo, tallaBase: tallaBase, medidas, tallas } = data;
+            var { ancho, sentido: optSesgo, tallaBase: tallaBase, medidas, tallas } = data;
 
             let resultados = [];
             let detallesPorTalla = {};
             let infoMessage = '';
 
+
+            // Si el sentido es "Al Sesgo", incrementamos el ancho en un 50%
+            if (optSesgo == 3) {
+                ancho += 0.5 * ancho;
+            }
             const factorInicial = tallaBase;
 
             if (optSesgo == 2) {
@@ -64,9 +69,7 @@ export class CalculatorService {
                         infoMessage = `Las medidas para la talla ${talla.key} no pueden ser inferiores a 1.`;
                         return;
                     }
-
                     const consumoPorTalla = this.calculateConsumption(ancho, medidasTalla);
-
                     detallesPorTalla[talla.key] = consumoPorTalla;
 
                     resultados.push({
@@ -80,7 +83,7 @@ export class CalculatorService {
             return { resultados, detallesPorTalla, infoMessage };
 
         } catch (error) {
-            throw new GoneException(error.message);
+            throw new ConflictException(error.message);
         }
     }
 
@@ -128,14 +131,16 @@ export class CalculatorService {
 
     async createCalculation(data: Calculation, username: string): Promise<Calculation> {
         try {
+            if (data.sentido != 2)
+                await this.validateWidthConsistency(data.nroMuestra, data.ancho, data.sentido);
+
             const newCalculation = this.calculationRepository.create({
                 ...data,
                 createdBy: username,
             });
             return this.calculationRepository.save(newCalculation);
         } catch (error) {
-            this.logger.error('Error in save calculate method', error.message, error.stack);
-            throw error;
+            throw new ConflictException(error.message);
         }
 
     }
@@ -148,15 +153,36 @@ export class CalculatorService {
         return this.calculationRepository.findOne({ where: { id } });
     }
 
-    async getCalculationByGenerico(nroGenerico: string): Promise<Calculation> {
+    async getCalculationByMuestra(nroMuestra: string): Promise<Calculation> {
+        return this.calculationRepository.findOne({ where: { nroMuestra } });
+    }
+
+    async getCalculationsByGenerico(nroGenerico: string): Promise<Calculation[]> {
         const nroMuestra = await this.normalizationService.findMuestraByGenerico(nroGenerico);
 
-        const calculation = await this.calculationRepository.findOne({ where: { nroMuestra } });
-
-        if (!calculation) {
-            throw new NotFoundException('No se encontró cálculo asociado a la muestra.');
+        const calculations = await this.calculationRepository.find({ where: { nroMuestra } });
+        if (!calculations || calculations.length === 0) {
+            throw new NotFoundException('No se encontraron cálculos asociados al genérico.');
         }
 
-        return calculation;
+        return calculations;
+    }
+
+    private async validateWidthConsistency(nroMuestra: string, nuevoAncho: number, sentido: number): Promise<void> {
+
+        const existingCalculations = await this.calculationRepository.find({
+            where: {
+                nroMuestra,
+                sentido: In([1, 3])
+            }
+        });
+
+        if (existingCalculations.length > 0) {
+            const previousAncho = existingCalculations[0].ancho;
+
+            if (nuevoAncho != previousAncho) {
+                throw new Error(`El ancho ingresado (${nuevoAncho} cm) no coincide con el ancho de los cálculos previos (${previousAncho} cm) para esta muestra.`);
+            }
+        }
     }
 }

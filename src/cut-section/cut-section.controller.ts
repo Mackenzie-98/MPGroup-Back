@@ -1,7 +1,9 @@
 // src/cut-section/cut-section.controller.ts
 import { Controller, Post, Body, Req } from '@nestjs/common';
 import { CutSectionService } from './cut-section.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Corte')
 @Controller('cut-section')
 export class CutSectionController {
     constructor(private readonly cutSectionService: CutSectionService) { }

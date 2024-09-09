@@ -3,12 +3,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CutSectionService } from './cut-section.service';
 import { CutSectionController } from './cut-section.controller';
-import { Recalculation } from './model/recalculation.entity';
 import { Calculation } from '../calculator/model/calculation.entity';
 import { CalculatorModule } from 'src/calculator/calculator.module';
+import { CorteRecalculation } from './model/corte-recalculation.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Recalculation, Calculation]), CalculatorModule],
+    imports: [TypeOrmModule.forFeature([CorteRecalculation, Calculation]), CalculatorModule],
     controllers: [CutSectionController],
     providers: [CutSectionService],
 })

@@ -1,7 +1,8 @@
+// src/cut-section/model/corte-recalculation.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
 
-@Entity('recalculo_corte')
-export class Recalculation {
+@Entity('corte_recalculation')
+export class CorteRecalculation {
     @PrimaryGeneratedColumn()
     id: number;
 
@@ -15,7 +16,7 @@ export class Recalculation {
     nuevoAncho: number;
 
     @Column('jsonb')
-    resultados: { label: string; value: string; talla: string }[];
+    resultados: { sentido: string; sesgo: number; detalles: { talla: string; consumo: number }[] }[];
 
     @Column()
     createdBy: string;

@@ -1,7 +1,9 @@
 import { Controller, Post, Get, Body, Param, Req } from '@nestjs/common';
 import { NormalizationService } from './normalization.service';
 import { Normalization } from './model/normalization.entity';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Normalizacion')
 @Controller('normalization')
 export class NormalizationController {
     constructor(private readonly normalizationService: NormalizationService) { }

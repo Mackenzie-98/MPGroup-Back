@@ -8,7 +8,7 @@ export class Calculation {
     @Column()
     nroMuestra: string;
 
-    @Column()
+    @Column('float')
     ancho: number;
 
     @Column()
@@ -19,6 +19,9 @@ export class Calculation {
 
     @Column()
     tallaBase: number;
+
+    @Column('float')
+    sesgo: number;
 
     @Column('jsonb')
     medidas: { value: number; escala: number }[];

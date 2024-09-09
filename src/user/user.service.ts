@@ -11,22 +11,10 @@ export class UserService {
         @InjectRepository(User)
         private usersRepository: Repository<User>,
     ) { }
-    private users = [
-        {
-            username: 'jacostac',
-            password: 'MP1234', // Esta contraseña no está encriptada para fines de prueba.
-            name: 'Julieth Tatiana Acosta Celis',
-            area: 'Ingenieria',
-            dateCreated: new Date(),
-        },
-    ];
 
-    async findOne(username: string): Promise<any | undefined> {
-        return this.users.find(user => user.username === username);
+    async findOne(username: string): Promise<User | undefined> {
+        return this.usersRepository.findOne({ where: { username } });
     }
-    // async findOne(username: string): Promise<User | undefined> {
-    //     return this.usersRepository.findOne({ where: { username } });
-    // }
 
     async createUser(createUserDto: CreateUserDto): Promise<User> {
         const saltOrRounds = 10;

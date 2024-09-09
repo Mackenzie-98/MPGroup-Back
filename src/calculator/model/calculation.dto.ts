@@ -1,7 +1,7 @@
 import { IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class Medida {
+export class Medida {
     @IsNumber()
     value: number;
 
@@ -9,7 +9,7 @@ class Medida {
     escala: number;
 }
 
-class Resultado {
+export class Resultado {
     @IsString()
     label: string;
 
@@ -20,7 +20,7 @@ class Resultado {
     talla: string;
 }
 
-class DetallePorTalla {
+export class DetallePorTalla {
     @IsNumber()
     consumo: number;
 
@@ -33,7 +33,7 @@ class DetallePorTalla {
     mpAnchos: { [key: number]: number[] };
 }
 
-class Talla {
+export class Talla {
     @IsString()
     key: string;
 

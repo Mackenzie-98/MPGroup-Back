@@ -1,9 +1,10 @@
 import { Controller, Post, Get, Body, Param, Req } from '@nestjs/common';
 import { CalculatorService } from './calculator.service';
 import { Calculation } from './model/calculation.entity';
-import { request } from 'express';
 import { CreateCalculationDto } from './model/calculation.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Calculadora')
 @Controller('calculator')
 export class CalculatorController {
   constructor(private readonly calculatorService: CalculatorService) { }
