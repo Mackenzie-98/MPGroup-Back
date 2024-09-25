@@ -14,6 +14,10 @@ export class CutSectionService {
         private readonly calculatorService: CalculatorService,
     ) { }
 
+    async getAllRecalculations(): Promise<CorteRecalculation[]> {
+        return this.recalculationRepository.find();
+    }
+
     async validateCut(nroGenerico: string, nroOrden: string, nuevoAncho: number) {
         try {
             const calculations = await this.calculatorService.getCalculationsByGenerico(nroGenerico);
