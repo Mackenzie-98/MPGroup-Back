@@ -15,6 +15,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('', app, document);
 
+  const cors = require('cors');
+
+  app.use(cors({
+    origin: 'http://ingenieria-grupomp.site',
+    credentials: true,
+  }));
+
   app.enableCors();
   await app.listen(3000, '0.0.0.0');
 }
