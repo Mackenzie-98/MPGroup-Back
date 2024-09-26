@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { Calculation } from './model/calculation.entity';
 import { NormalizationService } from 'src/normalization/normalization.service';
 import { CreateCalculationDto } from './model/calculation.dto';
+import { CalculationWithGeneric } from './model/calculation-generic.dto';
 
 @Injectable()
 export class CalculatorService {
@@ -145,8 +146,24 @@ export class CalculatorService {
 
     }
 
-    async getAllCalculations(): Promise<Calculation[]> {
-        return this.calculationRepository.find();
+    async getAllCalculations(): Promise<CalculationWithGeneric[]> {
+
+        const calculations = await this.calculationRepository.find();
+
+        const nroMuestras = calculations.map(calc => calc.nroMuestra);
+
+        const normalizations = await this.normalizationService.getNormalizationsByMuestras(nroMuestras);
+
+        const normalizationMap = new Map<string, string>();
+        normalizations.forEach(norm => {
+            normalizationMap.set(norm.nroMuestra, norm.nroGenerico);
+        });
+
+        calculations.forEach(calc => {
+            calc['nroGenerico'] = normalizationMap.get(calc.nroMuestra) || null;
+        });
+
+        return calculations as CalculationWithGeneric[];
     }
 
     async getCalculationById(id: number): Promise<Calculation> {

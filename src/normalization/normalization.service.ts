@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Normalization } from './model/normalization.entity';
 import { Calculation } from 'src/calculator/model/calculation.entity';
 import { CalculatorService } from 'src/calculator/calculator.service';
@@ -85,5 +85,13 @@ export class NormalizationService {
         }
 
         return normalization.nroMuestra;
+    }
+
+    async getNormalizationsByMuestras(nroMuestras: string[]): Promise<Normalization[]> {
+        return this.normalizationRepository.find({
+            where: {
+                nroMuestra: In(nroMuestras),
+            },
+        });
     }
 }

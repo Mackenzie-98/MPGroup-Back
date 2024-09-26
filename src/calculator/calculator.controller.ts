@@ -3,6 +3,7 @@ import { CalculatorService } from './calculator.service';
 import { Calculation } from './model/calculation.entity';
 import { CreateCalculationDto } from './model/calculation.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { CalculationWithGeneric } from './model/calculation-generic.dto';
 
 @ApiTags('Calculadora')
 @Controller('calculator')
@@ -21,7 +22,7 @@ export class CalculatorController {
   }
 
   @Get('all')
-  async getAllCalculations(): Promise<Calculation[]> {
+  async getAllCalculations(): Promise<CalculationWithGeneric[]> {
     return this.calculatorService.getAllCalculations();
   }
 
